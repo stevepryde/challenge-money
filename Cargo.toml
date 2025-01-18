@@ -2,6 +2,11 @@
 name = "money-project"
 version = "0.1.0"
 edition = "2021"
+authors = ["Steve Pryde <steve@stevepryde.com>"]
+license = "MIT"
+description = "Transaction simulator"
+repository = "https://github.com/stevepryde/challenge-money"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1"
