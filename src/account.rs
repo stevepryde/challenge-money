@@ -1,51 +1,29 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::Display,
+    io::Write,
     str::FromStr,
     sync::{Arc, Mutex, RwLock},
 };
 
 use anyhow::Context;
-use rust_decimal::Decimal;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::transaction::Transaction;
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AccountStatus {
-    #[default]
-    Active,
-    Locked,
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
-pub struct Account {
-    client_id: ClientId,
-    /// Full copy of this account's transaction history,
-    /// for auditing/redundancy purposes.
-    #[builder(skip)]
-    pub transactions: Vec<Transaction>,
-    #[builder(skip)]
-    pub available: Decimal,
-    #[builder(skip)]
-    pub held: Decimal,
-    #[builder(skip)]
-    pub total: Decimal,
-    #[builder(skip)]
-    pub status: AccountStatus,
-}
-
-impl Account {
-    pub fn is_locked(&self) -> bool {
-        self.status == AccountStatus::Locked
-    }
-}
+use crate::{
+    currency::Currency,
+    transaction::{Transaction, TransactionId},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr)]
-pub struct ClientId(u128);
+pub struct ClientId(u16);
+
+impl From<u16> for ClientId {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
 
 impl Display for ClientId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,6 +36,47 @@ impl FromStr for ClientId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self(s.parse().context("invalid client id")?))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountStatus {
+    #[default]
+    Active,
+    Locked,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, bon::Builder)]
+pub struct Account {
+    client_id: ClientId,
+    /// Full copy of this account's transaction history,
+    /// for auditing/redundancy purposes.
+    #[builder(skip)]
+    pub history: Vec<Transaction>,
+    /// Transaction cache for lookups.
+    #[builder(skip)]
+    pub transactions: IndexMap<TransactionId, Transaction>,
+    #[builder(skip)]
+    pub disputes: HashSet<TransactionId>,
+    #[builder(skip)]
+    pub available: Currency,
+    #[builder(skip)]
+    pub held: Currency,
+    #[builder(skip)]
+    pub total: Currency,
+    #[builder(skip)]
+    status: AccountStatus,
+}
+
+impl Account {
+    pub fn is_locked(&self) -> bool {
+        self.status == AccountStatus::Locked
+    }
+
+    pub fn freeze(&mut self) {
+        self.status = AccountStatus::Locked
     }
 }
 
@@ -88,7 +107,8 @@ impl AccountDatabase {
             .clone()
     }
 
-    pub fn output_data(&self) {
+    pub fn output_data<W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
+        writeln!(writer, "client,available,held,total")?;
         for account_mutex in self.data.read().expect("lock poisoned").values() {
             let account = account_mutex.lock().expect("lock poisoned");
             let client = account.client_id;
@@ -97,7 +117,62 @@ impl AccountDatabase {
             let total = account.total;
             let locked = account.is_locked();
 
-            println!("{client}, {available}, {held}, {total}, {locked}");
+            writeln!(writer, "{client},{available},{held},{total},{locked}")?;
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+pub mod test_support {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    use crate::{processor::apply_transaction, transaction::TransactionType};
+
+    impl Account {
+        pub fn sanity_check(&self) {
+            // Verify amounts.
+            assert_eq!(self.available, self.total - self.held);
+            // Account should only be locked if a chargeback occurred, and
+            // if so, the chargeback should be the last transaction.
+            assert_eq!(
+                self.history
+                    .iter()
+                    .last()
+                    .map(|x| x.transaction_type == TransactionType::Chargeback)
+                    .unwrap_or_default(),
+                self.is_locked()
+            );
+
+            let mut new_account = Account::builder().client_id(self.client_id).build();
+
+            for transaction in &self.history {
+                apply_transaction(transaction.clone(), &mut new_account).ok();
+            }
+
+            assert_eq!(self, &new_account);
+        }
+    }
+
+    impl AccountDatabase {
+        pub fn verify_all_accounts(&self) {
+            let data = self.data.read().unwrap();
+            for account_mutex in data.values() {
+                let account = account_mutex.lock().unwrap();
+                account.sanity_check();
+            }
+        }
+    }
+
+    impl Arbitrary for ClientId {
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (0..11u16).prop_map(|x| Self(x)).boxed()
+        }
+
+        type Strategy = BoxedStrategy<Self>;
     }
 }

@@ -7,9 +7,15 @@ edition = "2021"
 anyhow = "1"
 bon = "3"
 csv = "1"
-rust_decimal = "1"
+indexmap = { version = "2", features = ["serde"] }
+rust_decimal = { version = "1", features = ["serde-str"] }
 serde = { version = "1", features = ["derive"] }
 serde_with = "3"
 strum = { version = "0.26", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+proptest = "1"
+proptest-derive = "0.5"
+rust_decimal_macros = "1"

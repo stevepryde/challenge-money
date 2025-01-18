@@ -4,13 +4,20 @@ use std::{
 };
 
 use anyhow::Context;
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::account::ClientId;
+use crate::{account::ClientId, currency::Currency};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct TransactionId(u32);
+
+impl From<u32> for TransactionId {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
 
 impl Display for TransactionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,13 +40,13 @@ impl FromStr for TransactionId {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
+    SerializeDisplay,
+    DeserializeFromStr,
     strum::Display,
     strum::EnumString,
 )]
-#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum TransactionType {
     Deposit,
     Withdrawal,
@@ -48,7 +55,9 @@ pub enum TransactionType {
     Chargeback,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, bon::Builder)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub struct Transaction {
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
@@ -56,5 +65,7 @@ pub struct Transaction {
     pub client_id: ClientId,
     #[serde(rename = "tx")]
     pub transaction_id: TransactionId,
-    pub amount: Decimal,
+    #[builder(default)]
+    #[serde(default)]
+    pub amount: Currency,
 }
