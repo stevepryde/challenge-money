@@ -12,7 +12,8 @@ mod processor;
 mod transaction;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    // NOTE: enable for logging.
+    // tracing_subscriber::fmt::init();
 
     let filename = std::env::args()
         .nth(1)
