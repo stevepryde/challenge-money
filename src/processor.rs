@@ -122,7 +122,6 @@ fn apply_deposit(transaction: &Transaction, account: &mut Account) -> anyhow::Re
     account.available += transaction.amount;
     account.total += transaction.amount;
 
-    // Add to transactions.
     account
         .transactions
         .insert(transaction.transaction_id, transaction.clone());
@@ -133,17 +132,17 @@ fn apply_deposit(transaction: &Transaction, account: &mut Account) -> anyhow::Re
 fn apply_withdrawal(transaction: &Transaction, account: &mut Account) -> anyhow::Result<()> {
     ensure_transaction_does_not_exist(&transaction, &account)?;
 
-    if account.available >= transaction.amount {
-        account.total -= transaction.amount;
-        account.available -= transaction.amount;
-
-        account
-            .transactions
-            .insert(transaction.transaction_id, transaction.clone());
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!("insufficient funds"))
+    if account.available < transaction.amount {
+        return Err(anyhow::anyhow!("insufficient funds"));
     }
+
+    account.total -= transaction.amount;
+    account.available -= transaction.amount;
+
+    account
+        .transactions
+        .insert(transaction.transaction_id, transaction.clone());
+    Ok(())
 }
 
 fn apply_dispute(transaction: &Transaction, account: &mut Account) -> anyhow::Result<()> {
