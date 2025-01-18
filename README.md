@@ -58,7 +58,7 @@ anything that handles money values.
 
 If there were many more transaction types, and especially if the list was
 likely to grow over time or if some transaction types would live in another
-crate, I would consider adding a `ApplyTransaction` trait and replace the
+crate, I would consider adding an `ApplyTransaction` trait and replace the
 various `apply_*` functions with structs that implement that trait. That
 provides more extensibility. However, it also adds complexity, and since the
 number of transaction types is small, I opted for the simpler solution.
