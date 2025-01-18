@@ -1,0 +1,15 @@
+[package]
+name = "money-project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+bon = "3"
+csv = "1"
+rust_decimal = "1"
+serde = { version = "1", features = ["derive"] }
+serde_with = "3"
+strum = { version = "0.26", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
