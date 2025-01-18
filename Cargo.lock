@@ -473,7 +473,6 @@ dependencies = [
  "anyhow",
  "bon",
  "csv",
- "indexmap 2.7.0",
  "proptest",
  "proptest-derive",
  "rust_decimal",

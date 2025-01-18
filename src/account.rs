@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::Context;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -57,7 +56,7 @@ pub struct Account {
     pub history: Vec<Transaction>,
     /// Transaction cache for lookups.
     #[builder(skip)]
-    pub transactions: IndexMap<TransactionId, Transaction>,
+    pub transactions: HashMap<TransactionId, Transaction>,
     #[builder(skip)]
     pub disputes: HashSet<TransactionId>,
     #[builder(skip)]
