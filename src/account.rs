@@ -107,7 +107,7 @@ impl AccountDatabase {
     }
 
     pub fn output_data<W: Write>(&self, mut writer: W) -> anyhow::Result<()> {
-        writeln!(writer, "client,available,held,total")?;
+        writeln!(writer, "client,available,held,total,locked")?;
         for account_mutex in self.data.read().expect("lock poisoned").values() {
             let account = account_mutex.lock().expect("lock poisoned");
             let client = account.client_id;

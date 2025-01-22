@@ -70,7 +70,7 @@ withdrawal, 2, 5, 3.0"#;
         database.output_data(&mut output).unwrap();
         database.verify_all_accounts();
 
-        let expected_output = r#"client,available,held,total
+        let expected_output = r#"client,available,held,total,locked
 1,1.5,0,1.5,false
 2,2.0,0,2.0,false"#;
 
